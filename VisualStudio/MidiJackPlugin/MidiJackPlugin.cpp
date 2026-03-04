@@ -103,6 +103,8 @@ namespace
     // Open a MIDI device with a given index.
     void OpenDevice(unsigned int index)
     {
+        if (active_handles.size() >= 1)
+            return;
         static const DWORD_PTR callback = reinterpret_cast<DWORD_PTR>(MidiInProc);
         DeviceHandle handle;
         if (midiInOpen(&handle, index, callback, NULL, CALLBACK_FUNCTION) == MMSYSERR_NOERROR)
