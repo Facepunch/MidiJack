@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+#include <map>
+
 namespace
 {
     // Basic type aliases
@@ -65,6 +67,7 @@ namespace
     // Device handler lists
     std::list<DeviceHandle> active_handles;
     std::stack<DeviceHandle> handles_to_close;
+    std::map<DeviceHandle,unsigned int> device_to_index_map;
 
     // Mutex for resources
     std::recursive_mutex resource_lock;
@@ -103,8 +106,13 @@ namespace
     // Open a MIDI device with a given index.
     void OpenDevice(unsigned int index)
     {
-        if (active_handles.size() >= 1)
-            return;
+        //don't allow duplicate indices
+        for (std::pair<DeviceHandle,unsigned int> n : device_to_index_map)
+        {
+            if (n.second == index)
+                return;
+        }
+        
         static const DWORD_PTR callback = reinterpret_cast<DWORD_PTR>(MidiInProc);
         DeviceHandle handle;
         if (midiInOpen(&handle, index, callback, NULL, CALLBACK_FUNCTION) == MMSYSERR_NOERROR)
@@ -113,6 +121,7 @@ namespace
             {
                 resource_lock.lock();
                 active_handles.push_back(handle);
+                device_to_index_map[handle] = index;
                 resource_lock.unlock();
             }
             else
@@ -128,6 +137,7 @@ namespace
         midiInClose(handle);
 
         resource_lock.lock();
+        device_to_index_map.erase(handle);
         active_handles.remove(handle);
         resource_lock.unlock();
     }
